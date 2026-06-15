@@ -55,29 +55,22 @@ export function appointmentRoutes(db: DatabaseClient, config: Config) {
     try {
       const limit = parseInt(req.query.limit as string, 10);
       const offset = parseInt(req.query.offset as string, 10);
+      const providerId = req.query.providerId as string;
 
-      let providerId = req.query.providerId as string;
-
-      // Validate providerId format if provided
-      if (providerId && !/^[a-fA-F0-9\\-]{36}$/.test(providerId)) {
-        return res.status(400).json({ error: 'Invalid providerId format' });
-      }
-
-      // Authorization check: only admins can query arbitrary providers
-      if (providerId && req.user!.role !== 'admin') {
-        // Non-admin users can only query their own appointments
-        providerId = req.user!.id;
-      }
-
-      let query = 'SELECT id, patient_id, provider_id, appointment_type, status, start_time, end_time FROM appointments';
+      const baseQuery = 'SELECT id, patient_id, provider_id, appointment_type, status, start_time, end_time FROM appointments';
+      const queryParts = [baseQuery];
       const params: any[] = [];
 
       if (providerId) {
-        query += ' WHERE provider_id = $1';
+        queryParts.push('WHERE provider_id = $1');
         params.push(providerId);
       }
 
-      query += ' ORDER BY start_time DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+      const limitParamIndex = params.length + 1;
+      const offsetParamIndex = params.length + 2;
+      queryParts.push(`ORDER BY start_time DESC LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`);
+      
+      const query = queryParts.join(' ');
       params.push(limit, offset);
 
       const result = await db.query(query, params);
