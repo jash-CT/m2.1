@@ -75,8 +75,8 @@ export function patientRoutes(db: DatabaseClient, config: Config) {
 
       const result = await db.query(
         'SELECT id, mrn, gender, created_at FROM patients ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-        [limit, offset]
-      );
+        'SELECT id, mrn, gender, created_at FROM patients WHERE created_by = $3 ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+       [limit, offset, req.user!.id]
 
       res.json({ patients: result.rows, limit, offset });
     } catch (error: any) {
