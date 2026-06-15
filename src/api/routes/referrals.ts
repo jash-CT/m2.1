@@ -80,14 +80,28 @@ export function referralRoutes(db: DatabaseClient, config: Config) {
       const result = await db.query(
         'UPDATE referrals SET status = $1, handoff_notes_encrypted = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id, status, updated_at',
         [status, handoffNotes ? encryption.encrypt(handoffNotes) : null, req.params.id]
-      );
+    // Authorization check: only referring provider, specialist, or admin can update
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: 'Referral not found' });
+      `UPDATE referrals 
+       SET status = $1, handoff_notes_encrypted = $2 
+       WHERE id = $3 
+       AND (
+         referring_provider_id = $4 
+         OR specialist_provider_id = $4 
+         OR $5 = true
+       )
+       RETURNING id, status`,
+      [
+        status, 
+        handoff_notes ? encryption.encrypt(handoff_notes) : null, 
+        referralId,
+        req.user!.provider_id,
+        req.user!.role === 'admin'
+      ]
       }
 
       await db.query(
-        'INSERT INTO audit_logs (user_id, action, resource_type, resource_id, ip_address) VALUES ($1, $2, $3, $4, $5)',
+      return res.status(403).json({ error: 'Access denied. You do not have permission to update this referral.' });
         [req.user!.id, 'UPDATE', 'referral', req.params.id, req.ip]
       );
 
