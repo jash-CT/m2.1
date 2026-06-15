@@ -10,10 +10,16 @@ export function reportRoutes(db: DatabaseClient, config: Config) {
 
   router.get('/dashboard', async (req: Request, res: Response) => {
     try {
-      const patientCount = await db.query('SELECT COUNT(*) as count FROM patients');
-      const appointmentCount = await db.query('SELECT COUNT(*) as count FROM appointments WHERE start_time >= CURRENT_DATE');
-      const pendingReferrals = await db.query('SELECT COUNT(*) as count FROM referrals WHERE status = $1', ['pending']);
-      const claimsSubmitted = await db.query('SELECT COUNT(*) as count FROM claims WHERE submitted_at >= CURRENT_DATE - INTERVAL \'30 days\'');
+      // Ensure tenant isolation for multi-tenant deployment
+      const tenantId = (req as any).user?.tenant_id;
+      if (!tenantId) {
+        return res.status(403).json({ error: 'Tenant context required' });
+      }
+
+      const patientCount = await db.query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = $1', [tenantId]);
+      const appointmentCount = await db.query('SELECT COUNT(*) as count FROM appointments WHERE tenant_id = $1 AND start_time >= CURRENT_DATE', [tenantId]);
+      const pendingReferrals = await db.query('SELECT COUNT(*) as count FROM referrals WHERE tenant_id = $1 AND status = $2', [tenantId, 'pending']);
+      const claimsSubmitted = await db.query('SELECT COUNT(*) as count FROM claims WHERE tenant_id = $1 AND submitted_at >= CURRENT_DATE - INTERVAL \'30 days\'', [tenantId]);
 
       res.json({
         patients: parseInt(patientCount.rows[0].count, 10),
