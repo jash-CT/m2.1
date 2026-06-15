@@ -21,8 +21,6 @@
     "joi": "^17.11.0",
     "pg": "^8.11.3",
     "redis": "^4.6.11",
-    "axios": "^1.6.2",
-    "fhir-kit-client": "^1.9.2",
     "pdfkit": "^0.13.0",
     "csv-stringify": "^6.4.5",
     "winston": "^3.11.0",
