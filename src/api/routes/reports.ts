@@ -29,6 +29,11 @@ export function reportRoutes(db: DatabaseClient, config: Config) {
 
   router.get('/patients/export', async (req: Request, res: Response) => {
     try {
+      // Authorization check for bulk data export
+      if (!req.user!.role || !['ADMIN', 'DATA_EXPORT_USER'].includes(req.user!.role)) {
+        return res.status(403).json({ error: 'Insufficient permissions for data export' });
+      }
+
       const format = (req.query.format as string) || 'csv';
       const result = await db.query('SELECT id, mrn, gender, created_at FROM patients ORDER BY created_at DESC LIMIT 1000');
 
