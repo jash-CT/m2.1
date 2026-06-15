@@ -75,8 +75,8 @@ export function patientRoutes(db: DatabaseClient, config: Config) {
 
       const result = await db.query(
         'SELECT id, mrn, gender, created_at FROM patients ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-        'SELECT id, mrn, gender, created_at FROM patients WHERE created_by = $3 ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-       [limit, offset, req.user!.id]
+        [limit, offset]
+      );
 
       res.json({ patients: result.rows, limit, offset });
     } catch (error: any) {
@@ -124,6 +124,13 @@ export function patientRoutes(db: DatabaseClient, config: Config) {
   router.post('/:id/consents', validate(consentSchema), async (req: Request, res: Response) => {
     try {
       const { consentType, status, documentUrl } = req.body;
+      
+      // Verify user has access to this patient
+      const patientCheck = await db.query('SELECT id FROM patients WHERE id = $1 AND created_by = $2', [req.params.id, req.user!.id]);
+      if (patientCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Patient not found' });
+      }
+
       const grantedAt = status === 'granted' ? new Date() : null;
 
       const result = await db.query(
