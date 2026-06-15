@@ -11,7 +11,9 @@ const redactSensitive = winston.format((info) => {
       } else if (typeof obj[key] === 'object') {
         result[key] = redact(obj[key]);
       } else {
-        result[key] = obj[key];
+      // Sanitize control characters from string values to prevent log injection
+      const value = obj[key];
+      result[key] = typeof value === 'string' ? value.replace(/[\x00-\x1F\x7F]/g, '') : value;
       }
     }
     return result;
