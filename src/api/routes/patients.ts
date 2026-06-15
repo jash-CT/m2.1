@@ -124,6 +124,19 @@ export function patientRoutes(db: DatabaseClient, config: Config) {
   router.post('/:id/consents', validate(consentSchema), async (req: Request, res: Response) => {
     try {
       const { consentType, status, documentUrl } = req.body;
+
+      // Check if patient exists and user has permission to manage consents for this patient
+      const patientCheck = await db.query(
+        'SELECT id FROM patients WHERE id = $1',
+        [req.params.id]
+      );
+
+      if (patientCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Patient not found' });
+      }
+
+      // TODO: Add role-based authorization check here
+      // Verify req.user has permission to manage consents for this patient
       const grantedAt = status === 'granted' ? new Date() : null;
 
       const result = await db.query(
