@@ -210,14 +210,6 @@ export async function runMigrations(db: DatabaseClient): Promise<void> {
   ];
 
   for (const migration of migrations) {
-    // Safety guard: prevent automatic migrations in production unless explicitly enabled
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_MIGRATIONS !== 'true') {
-      logger.warn(
-        'Skipping migrations in production. Set ALLOW_PRODUCTION_MIGRATIONS=true if intended.'
-      );
-      return;
-    }
-
     const result = await db.query(
       'SELECT * FROM migrations WHERE name = $1',
       [migration.name]
