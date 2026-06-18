@@ -68,6 +68,64 @@ export function authMiddleware(jwtConfig: { secret: string; expiry: number }, ap
 
         req.user = {
           id: decoded.sub,
+
+        req.user = {
+          id: decoded.sub,
+          email: decoded.email,
+          role: decoded.role
+        };
+
+        return next();
+      } catch (error) {
+        logger.warn('JWT verification failed', { error: error, ip: req.ip });
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+    } else if (scheme === 'ApiKey') {
+      if (token !== apiKeyConfig.secret) {
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+
+      req.user = {
+        id: 'api-user',
+        email: 'api@system.local',
+        role: 'admin'
+      };
+
+      return next();
+    } else {
+      return res.status(401).json({ error: 'Unsupported authentication scheme' });
+    }
+  };
+}
+
+/**
+ * Role-based authorization middleware
+ * @param allowedRoles Array of roles allowed to access the route
+ * @returns Express middleware function
+ */
+export function roleMiddleware(allowedRoles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Ensure user is authenticated (authMiddleware should be called first)
+    if (!req.user || !req.user.role) {
+      logger.warn('Authorization check failed - no user context', { ip: req.ip, path: req.path });
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Check if user's role is in the allowed roles
+    if (!allowedRoles.includes(req.user.role)) {
+      logger.warn('Access denied - insufficient role', {
+        userId: req.user.id,
+        userRole: req.user.role,
+        allowedRoles,
+        ip: req.ip,
+        path: req.path
+      });
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    // User is authorized, proceed to next middleware
+    return next();
+  };
           email: decoded.email,
           role: decoded.role,
         };
