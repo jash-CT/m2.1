@@ -30,7 +30,19 @@ export function reportRoutes(db: DatabaseClient, config: Config) {
   router.get('/patients/export', async (req: Request, res: Response) => {
     try {
       const format = (req.query.format as string) || 'csv';
-      const result = await db.query('SELECT id, mrn, gender, created_at FROM patients ORDER BY created_at DESC LIMIT 1000');
+      // Check if user has export permissions
+      const user = (req as any).user;
+        logger.warn('Unauthorized export attempt', { userId: user?.id, role: user?.role });
+        return res.status(403).json({ error: 'Insufficient permissions for export operation' });
+      }
+
+      // Audit log for export operation
+      logger.info('Patient export initiated', { 
+        userId: user.id, 
+        role: user.role, 
+        format: req.query.format || 'csv'
+      });
+
 
       if (format === 'pdf') {
         const doc = new PDFDocument();
