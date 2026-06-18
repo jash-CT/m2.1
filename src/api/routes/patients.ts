@@ -87,9 +87,13 @@ export function patientRoutes(db: DatabaseClient, config: Config) {
 
   router.get('/:id', async (req: Request, res: Response) => {
     try {
+      // Authorization check: verify user has access to this patient
+      // Staff can only access patients they created
+      // Providers can access patients assigned to them via encounters
+      // Admins can access all patients
       const result = await db.query(
-        'SELECT id, mrn, first_name_encrypted, last_name_encrypted, dob_encrypted, gender, email_encrypted, phone_encrypted, created_at FROM patients WHERE id = $1',
-        [req.params.id]
+        'SELECT id, mrn, first_name_encrypted, last_name_encrypted, dob_encrypted, gender, email_encrypted, phone_encrypted, created_at FROM patients WHERE id = $1 AND (created_by = $2 OR $3 IN (SELECT provider_id FROM encounters WHERE patient_id = $1) OR $4 = \'admin\')',
+       [req.params.id, req.user!.id, req.user!.id, req.user!.role]
       );
 
       if (result.rows.length === 0) {
@@ -124,13 +128,6 @@ export function patientRoutes(db: DatabaseClient, config: Config) {
   router.post('/:id/consents', validate(consentSchema), async (req: Request, res: Response) => {
     try {
       const { consentType, status, documentUrl } = req.body;
-      
-      // Verify user has access to this patient
-      const patientCheck = await db.query('SELECT id FROM patients WHERE id = $1 AND created_by = $2', [req.params.id, req.user!.id]);
-      if (patientCheck.rows.length === 0) {
-        return res.status(404).json({ error: 'Patient not found' });
-      }
-
       const grantedAt = status === 'granted' ? new Date() : null;
 
       const result = await db.query(
